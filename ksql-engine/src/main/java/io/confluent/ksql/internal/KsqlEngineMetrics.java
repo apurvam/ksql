@@ -22,6 +22,7 @@ import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
 import org.apache.kafka.common.metrics.stats.Max;
+import org.apache.kafka.common.metrics.stats.Min;
 import org.apache.kafka.common.metrics.stats.Value;
 
 import java.io.Closeable;
@@ -104,6 +105,7 @@ public class KsqlEngineMetrics implements Closeable {
   private Sensor configureMessageConsumptionByQuerySensor(Metrics metrics) {
     Sensor sensor = metrics.sensor("message-consumption-by-query");
     sensor.add(metrics.metricName("messages-consumed-max", this.metricGroupName), new Max());
+    sensor.add(metrics.metricName("messages-consumed-min", this.metricGroupName), new Min());
     sensor.add(metrics.metricName("messages-consumed-avg", this.metricGroupName), new Avg());
     return sensor;
   }
