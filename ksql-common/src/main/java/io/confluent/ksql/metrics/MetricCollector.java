@@ -41,6 +41,10 @@ interface MetricCollector extends ConsumerInterceptor, ProducerInterceptor {
 
   default void configure(Map<String, ?> map) {  }
 
+  default String getGroupId() {
+    return null;
+  }
+
   String getId();
 
   Collection<TopicSensors.Stat> stats(String topic, boolean isError);

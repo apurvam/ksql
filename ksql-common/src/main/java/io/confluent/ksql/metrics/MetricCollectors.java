@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Topic based collectors for producer/consumer related statistics that can be mapped on to streams/tables/queries for ksql entities (Stream, Table, Query)
@@ -90,6 +91,16 @@ public class MetricCollectors {
     stats.forEach(stat -> results.append(stat.formatted()).append("  "));
     if (stats.size() > 0) results.append(String.format("%14s: ",lastEventTimestampMsg)).append(stats.iterator().next().timestamp());
     return results.toString();
+  }
+
+  public static Collection<Double> currentConsumptionRateByQuery() {
+    return collectorMap.values()
+        .stream()
+        .filter(collector -> collector.getGroupId() != null)
+        .collect(Collectors.groupingBy(MetricCollector::getGroupId,
+                                       Collectors.summingDouble(
+                                           MetricCollector::currentMessageConsumptionRate)))
+        .values();
   }
 
   public static double currentProductionRate() {

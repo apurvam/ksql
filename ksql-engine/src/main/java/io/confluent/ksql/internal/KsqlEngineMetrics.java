@@ -20,9 +20,12 @@ import org.apache.kafka.common.metrics.MeasurableStat;
 import org.apache.kafka.common.metrics.MetricConfig;
 import org.apache.kafka.common.metrics.Metrics;
 import org.apache.kafka.common.metrics.Sensor;
+import org.apache.kafka.common.metrics.stats.Avg;
+import org.apache.kafka.common.metrics.stats.Max;
 import org.apache.kafka.common.metrics.stats.Value;
 
 import java.io.Closeable;
+import java.util.Collection;
 
 import io.confluent.ksql.KsqlEngine;
 import io.confluent.ksql.metrics.MetricCollectors;
@@ -32,6 +35,8 @@ public class KsqlEngineMetrics implements Closeable {
   private final Sensor numActiveQueries;
   private final Sensor messagesIn;
   private final Sensor messagesOut;
+  private final Sensor numIdleQueries;
+  private final Sensor messageConsumptionByQuery;
 
   private final KsqlEngine ksqlEngine;
 
@@ -85,6 +90,27 @@ public class KsqlEngineMetrics implements Closeable {
         metrics.metricName("messages-produced-per-sec", this.metricGroupName,
                            "The number of messages produced per second across all queries"),
         new Value());
+
+    numIdleQueries = configureIdleQueriesSensor(metrics);
+    messageConsumptionByQuery = configureMessageConsumptionByQuerySensor(metrics);
+  }
+
+  private Sensor configureIdleQueriesSensor(Metrics metrics) {
+    Sensor sensor = metrics.sensor("num-idle-queries");
+    sensor.add(metrics.metricName("num-idle-queries", this.metricGroupName), new Value());
+    return sensor;
+  }
+
+  private Sensor configureMessageConsumptionByQuerySensor(Metrics metrics) {
+    Sensor sensor = metrics.sensor("message-consumption-by-query");
+    sensor.add(metrics.metricName("messages-consumed-max", this.metricGroupName), new Max());
+    sensor.add(metrics.metricName("messages-consumed-avg", this.metricGroupName), new Avg());
+    return sensor;
+  }
+
+  public void recordMessageConsumptionByQueryStats(Collection<Double> messagesConsumedByQuery) {
+    numIdleQueries.record(messagesConsumedByQuery.stream().filter(value -> value == 0.0).count());
+    messagesConsumedByQuery.forEach(this.messageConsumptionByQuery::record);
   }
 
   public void recordMessagesProduced(double value) {
@@ -101,5 +127,7 @@ public class KsqlEngineMetrics implements Closeable {
     metrics.removeSensor(numActiveQueries.name());
     metrics.removeSensor(messagesIn.name());
     metrics.removeSensor(messagesOut.name());
+    metrics.removeSensor(numIdleQueries.name());
+    metrics.removeSensor(messageConsumptionByQuery.name());
   }
 }

@@ -127,6 +127,7 @@ public class KsqlEngine implements Closeable, QueryTerminator {
     aggregateMetricsCollector.scheduleAtFixedRate(() -> {
       engineMetrics.recordMessagesConsumed(MetricCollectors.currentConsumptionRate());
       engineMetrics.recordMessagesProduced(MetricCollectors.currentProductionRate());
+      engineMetrics.recordMessageConsumptionByQueryStats(MetricCollectors.currentConsumptionRateByQuery());
     }, 1000, 1000, TimeUnit.MILLISECONDS);
   }
 
@@ -462,7 +463,6 @@ public class KsqlEngine implements Closeable, QueryTerminator {
     topicClient.close();
     engineMetrics.close();
   }
-
 
   @Override
   public boolean terminateAllQueries() {
