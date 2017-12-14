@@ -84,6 +84,7 @@ public class ProducerCollector implements MetricCollector {
     // Note: synchronized due to metrics registry not handling concurrent add/check-exists activity in a reliable way
     synchronized (metrics) {
       addSensor(key, "events-per-sec", new Rate(), sensors, false);
+      addSensor(key, "failed-events-per-sec", new Rate(), sensors, true);
       addSensor(key, "  total-events", new Total(), sensors, false);
       addSensor(key, "  total-failed", new Total(), sensors, true);
     }
@@ -136,6 +137,17 @@ public class ProducerCollector implements MetricCollector {
     return allStats
         .stream()
         .filter(stat -> stat.name().contains("events-per-sec"))
+        .mapToDouble(TopicSensors.Stat::getValue)
+        .sum();
+  }
+
+  @Override
+  public double errorRate() {
+    final List<TopicSensors.Stat> allStats = new ArrayList<>();
+    topicSensors.values().forEach(record -> allStats.addAll(record.errorRateStats()));
+
+    return allStats
+        .stream()
         .mapToDouble(TopicSensors.Stat::getValue)
         .sum();
   }

@@ -42,13 +42,17 @@ public class ConsumerCollector implements MetricCollector {
   private final Map<String, TopicSensors> topicSensors = new HashMap<>();
   private Metrics metrics;
   private String id;
+  private String groupId;
   private Time time;
 
   public void configure(Map<String, ?> map) {
     String id = (String) map.get(ConsumerConfig.GROUP_ID_CONFIG);
+    if (id != null) {
+      this.groupId = id;
+    }
     if (id == null) id = (String) map.get(ConsumerConfig.CLIENT_ID_CONFIG);
     if (id.contains(""))
-    configure(MetricCollectors.getMetrics(), MetricCollectors.addCollector(id, this), MetricCollectors.getTime());
+      configure(MetricCollectors.getMetrics(), MetricCollectors.addCollector(id, this), MetricCollectors.getTime());
   }
 
   ConsumerCollector configure(final Metrics metrics, final String id, final Time time) {
@@ -56,6 +60,11 @@ public class ConsumerCollector implements MetricCollector {
     this.metrics = metrics;
     this.time = time;
     return this;
+  }
+
+  @Override
+  public String getGroupId() {
+    return this.groupId;
   }
 
   @Override
@@ -85,7 +94,6 @@ public class ConsumerCollector implements MetricCollector {
     ).increment(null, isError);
   }
 
-
   private String getCounterKey(String topic) {
     return topic;
   }
@@ -97,6 +105,7 @@ public class ConsumerCollector implements MetricCollector {
     // Note: synchronized due to metrics registry not handling concurrent add/check-exists activity in a reliable way
     synchronized (this.metrics) {
       addSensor(key, "events-per-sec", new Rate(), sensors, false);
+      addSensor(key, "failed-events-per-sec", new Rate(), sensors, true);
       addSensor(key, "c-total-events", new Total(), sensors, false);
       addSensor(key, "c-total-failed", new Total(), sensors, true);
     }
@@ -147,6 +156,17 @@ public class ConsumerCollector implements MetricCollector {
     return allStats
         .stream()
         .filter(stat -> stat.name().contains("events-per-sec"))
+        .mapToDouble(TopicSensors.Stat::getValue)
+        .sum();
+  }
+
+  @Override
+  public double errorRate() {
+    final List<TopicSensors.Stat> allStats = new ArrayList<>();
+    topicSensors.values().forEach(record -> allStats.addAll(record.errorRateStats()));
+
+    return allStats
+        .stream()
         .mapToDouble(TopicSensors.Stat::getValue)
         .sum();
   }
