@@ -9,6 +9,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -29,14 +30,18 @@ public class MetricCollectorsTest {
 
   private static final String TEST_TOPIC = "shared-topic";
 
+  @Before
+  public void setUp() {
+    MetricCollectors.initialize();
+  }
+
   @After
   public void tearDown() {
-    MetricCollectors.getMetrics().close();
+    MetricCollectors.cleanUp();
   }
 
   @Test
   public void shouldAggregateStats() throws Exception {
-
     List<TopicSensors.Stat> stats = Arrays.asList(new TopicSensors.Stat("metric", 1, 1l), new TopicSensors.Stat("metric", 1, 1l), new TopicSensors.Stat("metric", 1, 1l));
     Map<String, TopicSensors.Stat> aggregateMetrics = MetricCollectors.getAggregateMetrics(stats);
     assertThat(aggregateMetrics.size(), equalTo(1));
@@ -162,7 +167,7 @@ public class MetricCollectorsTest {
   }
 
   @Test
-  public void shouldNotIncludeRestoreConsumers() throws Exception {
+  public void shouldNotIncludeRestoreConsumersWhenComputingPerQueryStats() throws Exception {
     ConsumerCollector collector1 = new ConsumerCollector();
     collector1.configure(ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group1"));
 
@@ -204,5 +209,23 @@ public class MetricCollectorsTest {
     // of what it should be because all the samples haven't been filled out yet.
     assertEquals(5.0, Math.floor(consumptionByQuery.get(0)), 0.1);
     assertEquals(10.0, Math.floor(consumptionByQuery.get(1)), 0.1);
+  }
+
+  @Test
+  public void shouldAggregateErrorRatesAcrossProducersAndConsumers() {
+    ConsumerCollector consumerCollector = new ConsumerCollector();
+    consumerCollector.configure(ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "groupfoo1"));
+
+    ProducerCollector producerCollector = new ProducerCollector();
+    producerCollector.configure(ImmutableMap.of(ProducerConfig.CLIENT_ID_CONFIG, "clientfoo2"));
+
+    for (int i = 0; i < 1000; i++) {
+      consumerCollector.recordError(TEST_TOPIC);
+      producerCollector.recordError(TEST_TOPIC);
+    }
+
+    // we have 2000 errors in one sample out of a 100. So the effective error rate computed
+    // should be 20 for this run.
+    assertEquals(20.0, Math.floor(MetricCollectors.currentErrorRate()), 0.1);
   }
 }

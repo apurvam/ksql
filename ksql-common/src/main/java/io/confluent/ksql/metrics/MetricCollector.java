@@ -51,6 +51,8 @@ interface MetricCollector extends ConsumerInterceptor, ProducerInterceptor {
 
   void recordError(String topic);
 
+  double errorRate();
+
   /**
    * Get the current message production across all topics tracked by this collector.
    */

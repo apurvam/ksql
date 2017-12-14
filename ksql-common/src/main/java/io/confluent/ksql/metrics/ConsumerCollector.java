@@ -94,7 +94,6 @@ public class ConsumerCollector implements MetricCollector {
     ).increment(null, isError);
   }
 
-
   private String getCounterKey(String topic) {
     return topic;
   }
@@ -106,6 +105,7 @@ public class ConsumerCollector implements MetricCollector {
     // Note: synchronized due to metrics registry not handling concurrent add/check-exists activity in a reliable way
     synchronized (this.metrics) {
       addSensor(key, "events-per-sec", new Rate(), sensors, false);
+      addSensor(key, "failed-events-per-sec", new Rate(), sensors, true);
       addSensor(key, "c-total-events", new Total(), sensors, false);
       addSensor(key, "c-total-failed", new Total(), sensors, true);
     }
@@ -156,6 +156,17 @@ public class ConsumerCollector implements MetricCollector {
     return allStats
         .stream()
         .filter(stat -> stat.name().contains("events-per-sec"))
+        .mapToDouble(TopicSensors.Stat::getValue)
+        .sum();
+  }
+
+  @Override
+  public double errorRate() {
+    final List<TopicSensors.Stat> allStats = new ArrayList<>();
+    topicSensors.values().forEach(record -> allStats.addAll(record.errorRateStats()));
+
+    return allStats
+        .stream()
         .mapToDouble(TopicSensors.Stat::getValue)
         .sum();
   }

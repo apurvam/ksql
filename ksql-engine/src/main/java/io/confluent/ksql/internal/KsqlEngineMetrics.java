@@ -38,6 +38,7 @@ public class KsqlEngineMetrics implements Closeable {
   private final Sensor messagesOut;
   private final Sensor numIdleQueries;
   private final Sensor messageConsumptionByQuery;
+  private final Sensor errorRate;
 
   private final KsqlEngine ksqlEngine;
 
@@ -53,6 +54,7 @@ public class KsqlEngineMetrics implements Closeable {
     this.messagesOut =  configureMessagesOut(metrics);
     this.numIdleQueries = configureIdleQueriesSensor(metrics);
     this.messageConsumptionByQuery = configureMessageConsumptionByQuerySensor(metrics);
+    this.errorRate = configureErrorRate(metrics);
   }
 
   @Override
@@ -63,24 +65,50 @@ public class KsqlEngineMetrics implements Closeable {
     metrics.removeSensor(messagesOut.name());
     metrics.removeSensor(numIdleQueries.name());
     metrics.removeSensor(messageConsumptionByQuery.name());
+    metrics.removeSensor(errorRate.name());
   }
 
-  public void recordMessageConsumptionByQueryStats(Collection<Double> messagesConsumedByQuery) {
+  public void updateMetrics() {
+    recordMessagesConsumed(MetricCollectors.currentConsumptionRate());
+    recordMessagesProduced(MetricCollectors.currentProductionRate());
+    recordMessageConsumptionByQueryStats(MetricCollectors.currentConsumptionRateByQuery());
+    recordErrorRate(MetricCollectors.currentErrorRate());
+  }
+
+  private void recordMessageConsumptionByQueryStats(Collection<Double> messagesConsumedByQuery) {
     numIdleQueries.record(messagesConsumedByQuery.stream().filter(value -> value == 0.0).count());
     messagesConsumedByQuery.forEach(this.messageConsumptionByQuery::record);
   }
 
-  public void recordMessagesProduced(double value) {
+  private void recordMessagesProduced(double value) {
     this.messagesOut.record(value);
   }
 
-  public void recordMessagesConsumed(double value) {
+  private void recordMessagesConsumed(double value) {
     this.messagesIn.record(value);
+  }
+
+  private void recordErrorRate(double value) {
+    this.errorRate.record(value);
+  }
+
+  private Sensor configureErrorRate(Metrics metrics) {
+    Sensor sensor = metrics.sensor(metricGroupName + "-error-rate");
+    sensor.add(
+        metrics.metricName("error-rate", this.metricGroupName,
+                           "The number of messages which were consumed but not processed. "
+                           + "Messages may not be processed if, for instance, the message "
+                           + "contents could not be deserialized due to an incompatible schema. "
+                           + "Alternately, a consumed messages may not have been produced, hence "
+                           + "being effectively dropped. Such messages would also be counted "
+                           + "toward the error rate."),
+        new Value());
+    return sensor;
   }
 
   private Sensor configureMessagesOut(Metrics metrics) {
     Sensor sensor = metrics.sensor(metricGroupName + "-messages-produced");
-    this.messagesOut.add(
+    sensor.add(
         metrics.metricName("messages-produced-per-sec", this.metricGroupName,
                            "The number of messages produced per second across all queries"),
         new Value());
