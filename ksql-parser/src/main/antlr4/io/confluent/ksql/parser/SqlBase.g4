@@ -115,7 +115,7 @@ querySpecification
 
 windowExpression
     : (IDENTIFIER)?
-     ( tumblingWindowExpression | hoppingWindowExpression | sessionWindowExpression)
+     ( tumblingWindowExpression | hoppingWindowExpression | sessionWindowExpression )
     ;
 
 tumblingWindowExpression
@@ -128,6 +128,10 @@ hoppingWindowExpression
 
 sessionWindowExpression
     : SESSION '(' number windowUnit ')'
+    ;
+
+slidingWindowExpression
+    : SLIDING '(' SIZE number windowUnit ')'
     ;
 
 windowUnit
@@ -175,7 +179,7 @@ selectItem
 relation
     : left=relation
       ( CROSS JOIN right=aliasedRelation
-      | joinType JOIN rightRelation=relation joinCriteria
+      | joinType JOIN rightRelation=relation joinCriteria joinWindow
       | NATURAL joinType JOIN right=aliasedRelation
       )                                           #joinRelation
     | aliasedRelation                             #relationDefault
@@ -186,6 +190,10 @@ joinType
     | LEFT OUTER?
     | RIGHT OUTER?
     | FULL OUTER?
+    ;
+
+joinWindow
+    : (WINDOW slidingWindowExpression)?
     ;
 
 joinCriteria
@@ -481,6 +489,7 @@ LOCALTIMESTAMP: 'LOCALTIMESTAMP';
 EXTRACT: 'EXTRACT';
 TUMBLING: 'TUMBLING';
 HOPPING: 'HOPPING';
+SLIDING: 'SLIDING';
 SIZE: 'SIZE';
 ADVANCE: 'ADVANCE';
 CASE: 'CASE';

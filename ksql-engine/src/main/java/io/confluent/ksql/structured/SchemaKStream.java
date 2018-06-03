@@ -21,6 +21,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.streams.kstream.JoinWindows;
 import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.kstream.KGroupedStream;
 import org.apache.kafka.streams.kstream.KStream;
@@ -271,6 +272,49 @@ public class SchemaKStream {
         schemaRegistryClient
     );
   }
+
+  public SchemaKStream leftJoin(
+      final SchemaKStream otherSchemaKStream,
+      final Schema joinSchema,
+      final Field joinKey,
+      final JoinWindows joinWindows,
+      KsqlTopicSerDe joinSerde,
+      KsqlConfig ksqlConfig) {
+
+    KStream joinStream =
+        kstream.leftJoin(otherSchemaKStream.kstream,
+                         (leftGenericRow, rightGenericRow) -> {
+                           List<Object> columns = new ArrayList<>(leftGenericRow.getColumns());
+                           if (rightGenericRow == null) {
+                             for (int i = leftGenericRow.getColumns().size();
+                                  i < joinSchema.fields().size(); i++) {
+                               columns.add(null);
+                             }
+                           } else {
+                             columns.addAll(rightGenericRow.getColumns());
+                           }
+
+                           return new GenericRow(columns);
+                         },
+                         joinWindows,
+                         Joined.with(Serdes.String(),
+                                     joinSerde.getGenericRowSerde(this.getSchema(),
+                                                                  ksqlConfig, false,
+                                                                  schemaRegistryClient),
+                                     null)
+
+        );
+
+    return new SchemaKStream(
+        joinSchema,
+        joinStream,
+        joinKey,
+        Arrays.asList(this, otherSchemaKStream),
+        Type.JOIN,
+        functionRegistry,
+        schemaRegistryClient);
+  }
+
 
   @SuppressWarnings("unchecked")
   public SchemaKStream selectKey(final Field newKeyField, boolean updateRowKey) {

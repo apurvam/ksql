@@ -26,17 +26,20 @@ import static java.util.Objects.requireNonNull;
 public class Join
     extends Relation {
 
+  private final SlidingWindowExpression slidingWindowExpression;
+
   public Join(Type type, Relation left, Relation right, Optional<JoinCriteria> criteria) {
-    this(Optional.empty(), type, left, right, criteria);
+    this(Optional.empty(), type, left, right, criteria, null);
   }
 
   public Join(NodeLocation location, Type type, Relation left, Relation right,
-              Optional<JoinCriteria> criteria) {
-    this(Optional.of(location), type, left, right, criteria);
+              Optional<JoinCriteria> criteria, SlidingWindowExpression slidingWindowExpression) {
+    this(Optional.of(location), type, left, right, criteria, slidingWindowExpression);
   }
 
   private Join(Optional<NodeLocation> location, Type type, Relation left, Relation right,
-               Optional<JoinCriteria> criteria) {
+               Optional<JoinCriteria> criteria,
+               SlidingWindowExpression slidingWindowExpression) {
     super(location);
     requireNonNull(left, "left is null");
     requireNonNull(right, "right is null");
@@ -50,6 +53,7 @@ public class Join
     this.left = left;
     this.right = right;
     this.criteria = criteria;
+    this.slidingWindowExpression = slidingWindowExpression;
   }
 
   public enum Type {
@@ -75,6 +79,10 @@ public class Join
 
   public Optional<JoinCriteria> getCriteria() {
     return criteria;
+  }
+
+  public Optional<SlidingWindowExpression> getSlidingWindowExpression() {
+    return Optional.of(slidingWindowExpression);
   }
 
   @Override

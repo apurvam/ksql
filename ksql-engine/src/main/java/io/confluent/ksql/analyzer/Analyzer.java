@@ -281,8 +281,10 @@ public class Analyzer extends DefaultTraversalVisitor<Node, AnalysisContext> {
             leftKeyFieldName,
             rightKeyFieldName,
             leftAlias,
-            rightAlias
+            rightAlias,
+            node.getSlidingWindowExpression().orElse(null)
         );
+
     analysis.setJoin(joinNode);
     return null;
   }

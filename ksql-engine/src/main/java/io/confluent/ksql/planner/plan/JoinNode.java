@@ -23,6 +23,7 @@ import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.kstream.JoinWindows;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.Map;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.ksql.function.FunctionRegistry;
+import io.confluent.ksql.parser.tree.SlidingWindowExpression;
 import io.confluent.ksql.serde.KsqlTopicSerDe;
 import io.confluent.ksql.structured.SchemaKStream;
 import io.confluent.ksql.structured.SchemaKTable;
@@ -56,6 +58,7 @@ public class JoinNode extends PlanNode {
   private final String leftAlias;
   private final String rightAlias;
   private final Field keyField;
+  private final SlidingWindowExpression slidingWindowExpression;
 
   public JoinNode(@JsonProperty("id") final PlanNodeId id,
                   @JsonProperty("type") final Type type,
@@ -64,7 +67,8 @@ public class JoinNode extends PlanNode {
                   @JsonProperty("leftKeyFieldName") final String leftKeyFieldName,
                   @JsonProperty("rightKeyFieldName") final String rightKeyFieldName,
                   @JsonProperty("leftAlias") final String leftAlias,
-                  @JsonProperty("rightAlias") final String rightAlias) {
+                  @JsonProperty("rightAlias") final String rightAlias,
+                  @JsonProperty("slidingWindow") final SlidingWindowExpression windowExpression) {
 
     // TODO: Type should be derived.
     super(id);
@@ -77,6 +81,7 @@ public class JoinNode extends PlanNode {
     this.rightAlias = rightAlias;
     this.schema = buildSchema(left, right);
     this.keyField = this.schema.field((leftAlias + "." + leftKeyFieldName));
+    this.slidingWindowExpression = windowExpression;
   }
 
   private Schema buildSchema(final PlanNode left, final PlanNode right) {
@@ -160,7 +165,35 @@ public class JoinNode extends PlanNode {
     if (!isLeftJoin()) {
       throw new KsqlException("Join type is not supported yet: " + getType());
     }
+    final KsqlTopicSerDe joinSerDe = getResultTopicSerde(this);
+    final SchemaKStream left = getLeft().buildStream(builder,
+                                                     ksqlConfig,
+                                                     kafkaTopicClient,
+                                                     functionRegistry,
+                                                     props, schemaRegistryClient);
 
+    final SchemaKStream right = getRight().buildStream(builder,
+                                                       ksqlConfig,
+                                                       kafkaTopicClient,
+                                                       functionRegistry,
+                                                       props, schemaRegistryClient);
+
+
+    if (left instanceof SchemaKStream && right instanceof SchemaKStream) {
+      if (slidingWindowExpression == null) {
+        throw new KsqlException("A stream-stream join must have be windowed.");
+      }
+      final SchemaKStream leftStream = streamForJoin(left, getLeftKeyFieldName(), kafkaTopicClient);
+      final SchemaKStream rightStream = streamForJoin(right, getRightKeyFieldName(),
+                                                      kafkaTopicClient);
+      return leftStream.leftJoin(rightStream,
+                                 getSchema(),
+                                 getSchema().field(getLeftAlias()
+                                                   + "."
+                                                   + leftStream.getKeyField().name()),
+                                 slidingWindowExpression.joinWindow(),
+                                 joinSerDe, ksqlConfig);
+    }
     final SchemaKTable table = tableForJoin(builder,
         ksqlConfig,
         kafkaTopicClient,
@@ -173,7 +206,7 @@ public class JoinNode extends PlanNode {
         functionRegistry,
         props, schemaRegistryClient), getLeftKeyFieldName(), kafkaTopicClient);
 
-    final KsqlTopicSerDe joinSerDe = getResultTopicSerde(this);
+
     return stream.leftJoin(table,
         getSchema(),
         getSchema().field(getLeftAlias() + "." + stream.getKeyField().name()),

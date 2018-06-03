@@ -188,7 +188,7 @@ public class JoinNodeTest {
 
     JoinNode testJoinNode = new JoinNode(joinNode.getId(), joinNode.getType(), joinNode.getLeft()
         , rightTable, joinNode.getLeftKeyFieldName(), joinNode.getRightKeyFieldName(), joinNode
-                                             .getLeftAlias(), joinNode.getRightAlias());
+                                             .getLeftAlias(), joinNode.getRightAlias(), null);
     testJoinNode.tableForJoin(builder, ksqlConfig, kafkaTopicClient, functionRegistry,
                           new HashMap<>(), new MockSchemaRegistryClient());
 

@@ -25,6 +25,7 @@ import io.confluent.ksql.metastore.StructuredDataSource;
 import io.confluent.ksql.parser.SqlBaseParser.TablePropertiesContext;
 import io.confluent.ksql.parser.SqlBaseParser.TablePropertyContext;
 import io.confluent.ksql.parser.tree.IntegerLiteral;
+import io.confluent.ksql.parser.tree.SlidingWindowExpression;
 import io.confluent.ksql.util.DataSourceExtractor;
 import io.confluent.ksql.util.KsqlException;
 
@@ -548,6 +549,16 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
   }
 
   @Override
+  public Node visitSlidingWindowExpression(SqlBaseParser.SlidingWindowExpressionContext ctx) {
+    String sizeStr = ctx.number().getText();
+    String sizeUnit = ctx.windowUnit().getText();
+    return new SlidingWindowExpression(
+        Long.parseLong(sizeStr),
+        WindowExpression.getWindowUnit(sizeUnit.toUpperCase())
+    );
+  }
+
+  @Override
   public Node visitGroupBy(SqlBaseParser.GroupByContext context) {
     return new GroupBy(
         getLocation(context),
@@ -794,7 +805,8 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
           Join.Type.CROSS,
           left,
           right,
-          Optional.<JoinCriteria>empty()
+          Optional.<JoinCriteria>empty(),
+          null
       );
     }
 
@@ -829,7 +841,14 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
       joinType = Join.Type.INNER;
     }
 
-    return new Join(getLocation(context), joinType, left, right, Optional.of(criteria));
+    SlidingWindowExpression windowExpression = null;
+    if (context.joinWindow() != null) {
+      windowExpression = (SlidingWindowExpression) visitSlidingWindowExpression(
+          context.joinWindow().slidingWindowExpression());
+    }
+
+    return new Join(getLocation(context), joinType, left, right, Optional.of(criteria),
+                    windowExpression);
   }
 
   @Override
