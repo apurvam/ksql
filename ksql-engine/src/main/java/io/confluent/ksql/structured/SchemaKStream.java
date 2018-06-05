@@ -287,7 +287,7 @@ public class SchemaKStream {
                            List<Object> columns = new ArrayList<>(leftGenericRow.getColumns());
                            if (rightGenericRow == null) {
                              for (int i = leftGenericRow.getColumns().size();
-                                  i < joinSchema.fields().size(); i++) {
+                                  i < otherSchemaKStream.getSchema().fields().size(); i++) {
                                columns.add(null);
                              }
                            } else {
@@ -301,9 +301,10 @@ public class SchemaKStream {
                                      joinSerde.getGenericRowSerde(this.getSchema(),
                                                                   ksqlConfig, false,
                                                                   schemaRegistryClient),
-                                     null)
-
-        );
+                                     joinSerde.getGenericRowSerde(otherSchemaKStream.getSchema(),
+                                                                  ksqlConfig, false,
+                                                                  schemaRegistryClient)
+        ));
 
     return new SchemaKStream(
         joinSchema,
