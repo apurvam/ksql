@@ -273,38 +273,42 @@ public class SchemaKStream {
     );
   }
 
+  @SuppressWarnings("unchecked")
   public SchemaKStream leftJoin(
       final SchemaKStream otherSchemaKStream,
       final Schema joinSchema,
       final Field joinKey,
       final JoinWindows joinWindows,
-      KsqlTopicSerDe joinSerde,
+      KsqlTopicSerDe leftSerde,
+      KsqlTopicSerDe rightSerde,
       KsqlConfig ksqlConfig) {
 
     KStream joinStream =
-        kstream.leftJoin(otherSchemaKStream.kstream,
-                         (leftGenericRow, rightGenericRow) -> {
-                           List<Object> columns = new ArrayList<>(leftGenericRow.getColumns());
-                           if (rightGenericRow == null) {
-                             for (int i = leftGenericRow.getColumns().size();
-                                  i < otherSchemaKStream.getSchema().fields().size(); i++) {
-                               columns.add(null);
-                             }
-                           } else {
-                             columns.addAll(rightGenericRow.getColumns());
-                           }
-
-                           return new GenericRow(columns);
-                         },
-                         joinWindows,
-                         Joined.with(Serdes.String(),
-                                     joinSerde.getGenericRowSerde(this.getSchema(),
-                                                                  ksqlConfig, false,
-                                                                  schemaRegistryClient),
-                                     joinSerde.getGenericRowSerde(otherSchemaKStream.getSchema(),
-                                                                  ksqlConfig, false,
-                                                                  schemaRegistryClient)
-        ));
+        kstream
+            .leftJoin(
+                otherSchemaKStream.kstream,
+                (leftGenericRow, rightGenericRow) -> {
+                  List<Object> columns = new ArrayList<>(leftGenericRow.getColumns());
+                  if (rightGenericRow == null) {
+                    int totalCols = columns.size() + otherSchemaKStream.getSchema().fields().size();
+                    for (int i = leftGenericRow.getColumns().size();
+                         i < totalCols; i++) {
+                      columns.add(null);
+                    }
+                  } else {
+                    columns.addAll(rightGenericRow.getColumns());
+                  }
+                  return new GenericRow(columns);
+                },
+                joinWindows,
+                Joined.with(Serdes.String(),
+                            leftSerde.getGenericRowSerde(this.getSchema(),
+                                                         ksqlConfig, false,
+                                                         schemaRegistryClient),
+                            rightSerde.getGenericRowSerde(otherSchemaKStream.getSchema(),
+                                                          ksqlConfig, false,
+                                                          schemaRegistryClient)
+                ));
 
     return new SchemaKStream(
         joinSchema,

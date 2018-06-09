@@ -177,19 +177,14 @@ selectItem
 
 
 relation
-    : left=relation
-      ( CROSS JOIN right=aliasedRelation
-      | joinType JOIN rightRelation=relation joinCriteria joinWindow
-      | NATURAL joinType JOIN right=aliasedRelation
-      )                                           #joinRelation
-    | aliasedRelation                             #relationDefault
+    : left=aliasedRelation joinType JOIN right=aliasedRelation joinCriteria joinWindow #joinRelation
+    | aliasedRelation #relationDefault
     ;
 
 joinType
     : INNER?
-    | LEFT OUTER?
-    | RIGHT OUTER?
-    | FULL OUTER?
+    | OUTER?
+    | LEFT?
     ;
 
 joinWindow
@@ -198,7 +193,6 @@ joinWindow
 
 joinCriteria
     : ON booleanExpression
-    | USING '(' identifier (',' identifier)* ')'
     ;
 
 
@@ -498,13 +492,10 @@ THEN: 'THEN';
 ELSE: 'ELSE';
 END: 'END';
 JOIN: 'JOIN';
-CROSS: 'CROSS';
 OUTER: 'OUTER';
 INNER: 'INNER';
 LEFT: 'LEFT';
 RIGHT: 'RIGHT';
-FULL: 'FULL';
-NATURAL: 'NATURAL';
 USING: 'USING';
 ON: 'ON';
 OVER: 'OVER';

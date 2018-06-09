@@ -11,7 +11,8 @@
 
     <!-- TODO: Fix Me!-->
     <suppress files="JsonPathTokenizer.java" checks="AvoidEscapedUnicodeCharacters"/>
-    <suppress files="(PersistentQueryMetadata|SourceDescription).java" checks="ParameterNumber"/>
+    <suppress files="(PersistentQueryMetadata|SourceDescription|JoinNode).java"
+              checks="ParameterNumber"/>
     <suppress files="(Console|Main|Generator|KsqlResource).java" checks="JavaNCSSCheck"/>
     <suppress files="Generator.java" checks="NPathComplexity"/>
     <suppress files="(ExpressionTreeRewriter|AstBuilder|KsqlParser).java" checks="ClassDataAbstractionCouplingCheck"/>

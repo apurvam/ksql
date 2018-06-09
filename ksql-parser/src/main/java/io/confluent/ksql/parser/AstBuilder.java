@@ -83,7 +83,6 @@ import io.confluent.ksql.parser.tree.IsNullPredicate;
 import io.confluent.ksql.parser.tree.Join;
 import io.confluent.ksql.parser.tree.JoinCriteria;
 import io.confluent.ksql.parser.tree.JoinOn;
-import io.confluent.ksql.parser.tree.JoinUsing;
 import io.confluent.ksql.parser.tree.LambdaExpression;
 import io.confluent.ksql.parser.tree.LikePredicate;
 import io.confluent.ksql.parser.tree.ListProperties;
@@ -93,7 +92,6 @@ import io.confluent.ksql.parser.tree.ListStreams;
 import io.confluent.ksql.parser.tree.ListTables;
 import io.confluent.ksql.parser.tree.ListTopics;
 import io.confluent.ksql.parser.tree.LogicalBinaryExpression;
-import io.confluent.ksql.parser.tree.NaturalJoin;
 import io.confluent.ksql.parser.tree.Node;
 import io.confluent.ksql.parser.tree.NodeLocation;
 import io.confluent.ksql.parser.tree.NotExpression;
@@ -795,58 +793,30 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
 
   @Override
   public Node visitJoinRelation(SqlBaseParser.JoinRelationContext context) {
-    Relation left = (Relation) visit(context.left);
-    Relation right;
-
-    if (context.CROSS() != null) {
-      right = (Relation) visit(context.right);
-      return new Join(
-          getLocation(context),
-          Join.Type.CROSS,
-          left,
-          right,
-          Optional.<JoinCriteria>empty(),
-          null
-      );
+    if (context.joinCriteria().ON() == null) {
+      throw new KsqlException("Invalid join criteria specified. KSQL only supports joining on "
+                              + "column values. For example `... left JOIN right on left.col = "
+                              + "right.col ...`. ");
     }
 
-    JoinCriteria criteria;
-    if (context.NATURAL() != null) {
-      right = (Relation) visit(context.right);
-      criteria = new NaturalJoin();
-    } else {
-      right = (Relation) visit(context.rightRelation);
-      if (context.joinCriteria().ON() != null) {
-        criteria = new JoinOn((Expression) visit(context.joinCriteria().booleanExpression()));
-      } else if (context.joinCriteria().USING() != null) {
-        List<String> columns = context.joinCriteria()
-            .identifier().stream()
-            .map(AstBuilder::getIdentifierText)
-            .collect(toList());
-
-        criteria = new JoinUsing(columns);
-      } else {
-        throw new IllegalArgumentException("Unsupported join criteria");
-      }
-    }
-
+    JoinCriteria criteria =
+        new JoinOn((Expression) visit(context.joinCriteria().booleanExpression()));
     Join.Type joinType;
     if (context.joinType().LEFT() != null) {
       joinType = Join.Type.LEFT;
-    } else if (context.joinType().RIGHT() != null) {
-      joinType = Join.Type.RIGHT;
-    } else if (context.joinType().FULL() != null) {
-      joinType = Join.Type.FULL;
+    } else if (context.joinType().OUTER() != null) {
+      joinType = Join.Type.OUTER;
     } else {
       joinType = Join.Type.INNER;
     }
 
     SlidingWindowExpression windowExpression = null;
-    if (context.joinWindow() != null) {
+    if (context.joinWindow() != null && context.joinWindow().slidingWindowExpression() != null) {
       windowExpression = (SlidingWindowExpression) visitSlidingWindowExpression(
           context.joinWindow().slidingWindowExpression());
     }
-
+    Relation left = (Relation) visit(context.left);
+    Relation right = (Relation) visit(context.right);
     return new Join(getLocation(context), joinType, left, right, Optional.of(criteria),
                     windowExpression);
   }

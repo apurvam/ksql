@@ -43,11 +43,7 @@ public class Join
     super(location);
     requireNonNull(left, "left is null");
     requireNonNull(right, "right is null");
-    if ((type == Type.CROSS) || (type == Type.IMPLICIT)) {
-      checkArgument(!criteria.isPresent(), "%s join cannot have join criteria", type);
-    } else {
-      checkArgument(criteria.isPresent(), "No join criteria specified");
-    }
+    checkArgument(criteria.isPresent(), "No join criteria specified");
 
     this.type = type;
     this.left = left;
@@ -57,7 +53,7 @@ public class Join
   }
 
   public enum Type {
-    CROSS, INNER, LEFT, RIGHT, FULL, IMPLICIT
+    INNER, LEFT, OUTER
   }
 
   private final Type type;
@@ -82,7 +78,8 @@ public class Join
   }
 
   public Optional<SlidingWindowExpression> getSlidingWindowExpression() {
-    return Optional.of(slidingWindowExpression);
+    return slidingWindowExpression == null
+           ? Optional.empty() : Optional.of(slidingWindowExpression);
   }
 
   @Override

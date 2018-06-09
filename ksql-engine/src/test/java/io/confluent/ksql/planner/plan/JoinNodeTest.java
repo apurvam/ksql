@@ -45,6 +45,7 @@ import io.confluent.ksql.function.FunctionRegistry;
 import io.confluent.ksql.function.InternalFunctionRegistry;
 import io.confluent.ksql.metastore.MetaStore;
 import io.confluent.ksql.metastore.StructuredDataSource;
+import io.confluent.ksql.serde.DataSource;
 import io.confluent.ksql.structured.LogicalPlanBuilder;
 import io.confluent.ksql.structured.SchemaKStream;
 import io.confluent.ksql.structured.SchemaKTable;
@@ -186,9 +187,11 @@ public class JoinNodeTest {
 
     RightTable rightTable = new RightTable(new PlanNodeId("1"), joinNode.getRight().getSchema());
 
-    JoinNode testJoinNode = new JoinNode(joinNode.getId(), joinNode.getType(), joinNode.getLeft()
+    JoinNode testJoinNode = new JoinNode(joinNode.getId(), joinNode.getJoinType(), joinNode.getLeft()
         , rightTable, joinNode.getLeftKeyFieldName(), joinNode.getRightKeyFieldName(), joinNode
-                                             .getLeftAlias(), joinNode.getRightAlias(), null);
+                                             .getLeftAlias(), joinNode.getRightAlias(), null,
+                                         DataSource.DataSourceType.KSTREAM,
+                                         DataSource.DataSourceType.KTABLE);
     testJoinNode.tableForJoin(builder, ksqlConfig, kafkaTopicClient, functionRegistry,
                           new HashMap<>(), new MockSchemaRegistryClient());
 
