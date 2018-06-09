@@ -267,7 +267,7 @@ public class QueryTranslationTest {
 
       String test;
       while ((test = reader.readLine()) != null) {
-        if (test.equals("new-joins.json")) {
+        if (test.equals("joins.json")) {
           tests.add(test);
         }
       }

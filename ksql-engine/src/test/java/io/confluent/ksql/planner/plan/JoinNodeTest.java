@@ -217,8 +217,9 @@ public class JoinNodeTest {
       buildJoin("SELECT t1.col0, t2.col0, t2.col1 FROM test1 t1 LEFT JOIN test2 t2 ON t1.col0 = t2.col0;");
     } catch (KsqlException e) {
       Assert.assertThat(e.getMessage(), equalTo(
-          "Stream and Table have different number of partitions. Either the stream or the table" +
-              "must be repartitioned such that both have the same number of partitions."
+          "Can't join STREAM with TABLE since the number of partitions don't match. STREAM "
+          + "partitions = 1; TABLE partitions = 2. Please repartition either one so that the "
+          + "number of partitions match."
       ));
     }
 
