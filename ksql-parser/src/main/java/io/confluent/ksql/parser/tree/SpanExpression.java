@@ -26,24 +26,24 @@ public class SpanExpression extends Node {
 
   private final long before;
   private final long after;
-  private final TimeUnit sizeUnit;
+  private final TimeUnit timeUnit;
 
-  public SpanExpression(final long before, final long after, final TimeUnit sizeUnit) {
-    this(Optional.empty(), before, after, sizeUnit);
+  public SpanExpression(final long before, final long after, final TimeUnit timeUnit) {
+    this(Optional.empty(), before, after, timeUnit);
   }
 
 
   private SpanExpression(final Optional<NodeLocation> location, final long before, final long after,
-                         final TimeUnit sizeUnit) {
+                         final TimeUnit timeUnit) {
     super(location);
     this.before = before;
     this.after = after;
-    this.sizeUnit = sizeUnit;
+    this.timeUnit = timeUnit;
   }
 
   public JoinWindows joinWindow() {
-    final JoinWindows joinWindow = JoinWindows.of(sizeUnit.toMillis(before));
-    return joinWindow.after(sizeUnit.toMillis(after));
+    final JoinWindows joinWindow = JoinWindows.of(timeUnit.toMillis(before));
+    return joinWindow.after(timeUnit.toMillis(after));
   }
 
   @Override
@@ -51,16 +51,16 @@ public class SpanExpression extends Node {
     final StringBuilder builder = new StringBuilder();
     builder.append(" SPAN ");
     if (before == after) {
-      builder.append(before).append(' ').append(sizeUnit);
+      builder.append(before).append(' ').append(timeUnit);
     } else {
-      builder.append('(').append(before).append(", ").append(after).append(") ").append(sizeUnit);
+      builder.append('(').append(before).append(", ").append(after).append(") ").append(timeUnit);
     }
     return builder.toString();
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(before, after, sizeUnit);
+    return Objects.hash(before, after, timeUnit);
   }
 
   @Override
@@ -73,9 +73,23 @@ public class SpanExpression extends Node {
     }
     SpanExpression spanExpression = (SpanExpression) o;
     return spanExpression.before == before && spanExpression.after == after
-           && spanExpression.sizeUnit == sizeUnit;
+           && spanExpression.timeUnit == timeUnit;
   }
 
+  // Visible for testing
+  public long getBefore() {
+    return before;
+  }
+
+  // Visible for testing
+  public long getAfter() {
+    return after;
+  }
+
+  // Visible for testing
+  public TimeUnit getTimeUnit() {
+    return timeUnit;
+  }
 
 
 }
