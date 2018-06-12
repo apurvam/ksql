@@ -33,7 +33,7 @@ import java.util.Map;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.ksql.GenericRow;
 import io.confluent.ksql.function.FunctionRegistry;
-import io.confluent.ksql.parser.tree.SlidingWindowExpression;
+import io.confluent.ksql.parser.tree.SpanExpression;
 import io.confluent.ksql.serde.DataSource;
 import io.confluent.ksql.structured.SchemaKStream;
 import io.confluent.ksql.structured.SchemaKTable;
@@ -60,7 +60,7 @@ public class JoinNode extends PlanNode {
   private final String leftAlias;
   private final String rightAlias;
   private final Field keyField;
-  private final SlidingWindowExpression slidingWindowExpression;
+  private final SpanExpression spanExpression;
   private final DataSource.DataSourceType leftType;
   private final DataSource.DataSourceType rightType;
 
@@ -72,7 +72,7 @@ public class JoinNode extends PlanNode {
                   @JsonProperty("rightKeyFieldName") final String rightKeyFieldName,
                   @JsonProperty("leftAlias") final String leftAlias,
                   @JsonProperty("rightAlias") final String rightAlias,
-                  @JsonProperty("slidingWindow") final SlidingWindowExpression windowExpression,
+                  @JsonProperty("slidingWindow") final SpanExpression spanExpression,
                   @JsonProperty("leftType") final DataSource.DataSourceType leftType,
                   @JsonProperty("rightType") final DataSource.DataSourceType rightType) {
 
@@ -87,7 +87,7 @@ public class JoinNode extends PlanNode {
     this.rightAlias = rightAlias;
     this.schema = buildSchema(left, right);
     this.keyField = this.schema.field((leftAlias + "." + leftKeyFieldName));
-    this.slidingWindowExpression = windowExpression;
+    this.spanExpression = spanExpression;
     this.leftType = leftType;
     this.rightType = rightType;
   }
@@ -276,9 +276,12 @@ public class JoinNode extends PlanNode {
       final SchemaKStream rightStream = buildStream(joinNode.getRight(),
                                                     joinNode.getRightKeyFieldName());
 
-      if (joinNode.slidingWindowExpression == null) {
-        throw new KsqlException("Stream-Stream joins must have a window specification. None was "
-                                + "provided.");
+      if (joinNode.spanExpression == null) {
+        throw new KsqlException("Stream-Stream joins must have a SPAN clause specified. None was "
+                                + "provided. To learn about how to specify a SPAN clause with a "
+                                + "stream-stream join, please visit: https://docs.confluent"
+                                + ".io/current/ksql/docs/syntax-reference.html"
+                                + "#create-stream-as-select");
       }
 
       switch (joinNode.joinType) {
@@ -287,7 +290,7 @@ public class JoinNode extends PlanNode {
                                      joinNode.schema,
                                      getJoinKey(joinNode.leftAlias,
                                                 leftStream.getKeyField().name()),
-                                     joinNode.slidingWindowExpression.joinWindow(),
+                                     joinNode.spanExpression.joinWindow(),
                                      getSerDeForNode(joinNode.left),
                                      getSerDeForNode(joinNode.right));
         case OUTER:
@@ -295,7 +298,7 @@ public class JoinNode extends PlanNode {
                                       joinNode.schema,
                                       getJoinKey(joinNode.leftAlias,
                                                  leftStream.getKeyField().name()),
-                                      joinNode.slidingWindowExpression.joinWindow(),
+                                      joinNode.spanExpression.joinWindow(),
                                       getSerDeForNode(joinNode.left),
                                       getSerDeForNode(joinNode.right));
         case INNER:
@@ -303,7 +306,7 @@ public class JoinNode extends PlanNode {
                                       joinNode.schema,
                                       getJoinKey(joinNode.leftAlias,
                                                  leftStream.getKeyField().name()),
-                                      joinNode.slidingWindowExpression.joinWindow(),
+                                      joinNode.spanExpression.joinWindow(),
                                       getSerDeForNode(joinNode.left),
                                       getSerDeForNode(joinNode.right));
         default:

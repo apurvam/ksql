@@ -130,10 +130,6 @@ sessionWindowExpression
     : SESSION '(' number windowUnit ')'
     ;
 
-slidingWindowExpression
-    : SLIDING '(' SIZE number windowUnit ')'
-    ;
-
 windowUnit
     : DAY
     | HOUR
@@ -188,7 +184,12 @@ joinType
     ;
 
 joinWindow
-    : (WINDOW slidingWindowExpression)?
+    : (SPAN spanExpression)?
+    ;
+
+spanExpression
+    : '(' number ',' number ')' windowUnit # spanWithBeforeAndAfter
+    | number windowUnit                 # singleSpan
     ;
 
 joinCriteria
@@ -419,6 +420,7 @@ SOME: 'SOME';
 ANY: 'ANY';
 DISTINCT: 'DISTINCT';
 WHERE: 'WHERE';
+SPAN: 'SPAN';
 WINDOW: 'WINDOW';
 GROUP: 'GROUP';
 BY: 'BY';
@@ -483,7 +485,6 @@ LOCALTIMESTAMP: 'LOCALTIMESTAMP';
 EXTRACT: 'EXTRACT';
 TUMBLING: 'TUMBLING';
 HOPPING: 'HOPPING';
-SLIDING: 'SLIDING';
 SIZE: 'SIZE';
 ADVANCE: 'ADVANCE';
 CASE: 'CASE';

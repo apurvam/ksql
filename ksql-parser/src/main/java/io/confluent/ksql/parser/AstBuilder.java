@@ -25,7 +25,7 @@ import io.confluent.ksql.metastore.StructuredDataSource;
 import io.confluent.ksql.parser.SqlBaseParser.TablePropertiesContext;
 import io.confluent.ksql.parser.SqlBaseParser.TablePropertyContext;
 import io.confluent.ksql.parser.tree.IntegerLiteral;
-import io.confluent.ksql.parser.tree.SlidingWindowExpression;
+import io.confluent.ksql.parser.tree.SpanExpression;
 import io.confluent.ksql.util.DataSourceExtractor;
 import io.confluent.ksql.util.KsqlException;
 
@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import io.confluent.ksql.parser.tree.AliasedRelation;
 import io.confluent.ksql.parser.tree.AllColumns;
@@ -546,14 +547,28 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
     );
   }
 
-  @Override
-  public Node visitSlidingWindowExpression(SqlBaseParser.SlidingWindowExpressionContext ctx) {
-    String sizeStr = ctx.number().getText();
-    String sizeUnit = ctx.windowUnit().getText();
-    return new SlidingWindowExpression(
-        Long.parseLong(sizeStr),
-        WindowExpression.getWindowUnit(sizeUnit.toUpperCase())
-    );
+  public Node visitSpanExpression(SqlBaseParser.SpanExpressionContext ctx) {
+    long before;
+    long after;
+    TimeUnit timeUnit;
+    if (ctx instanceof SqlBaseParser.SingleSpanContext) {
+
+      final SqlBaseParser.SingleSpanContext singleSpan = (SqlBaseParser.SingleSpanContext) ctx;
+      before = Long.parseLong(singleSpan.number().getText());
+      after = before;
+      timeUnit = WindowExpression.getWindowUnit(singleSpan.windowUnit().getText().toUpperCase());
+    } else if (ctx instanceof SqlBaseParser.SpanWithBeforeAndAfterContext) {
+      final SqlBaseParser.SpanWithBeforeAndAfterContext beforeAndAfterSpan
+          = (SqlBaseParser.SpanWithBeforeAndAfterContext) ctx;
+      before = Long.parseLong(beforeAndAfterSpan.number(0).getText());
+      after = Long.parseLong(beforeAndAfterSpan.number(1).getText());
+      timeUnit = WindowExpression.getWindowUnit(
+          beforeAndAfterSpan.windowUnit().getText().toUpperCase());
+    } else {
+      throw new KsqlException("Expecting either a single SPAN, ie \"SPAN 10 seconds\", or a span "
+                              + "with before and after specified, ie. \"SPAN (10, 20) seconds");
+    }
+    return new SpanExpression(before, after, timeUnit);
   }
 
   @Override
@@ -810,15 +825,15 @@ public class AstBuilder extends SqlBaseBaseVisitor<Node> {
       joinType = Join.Type.INNER;
     }
 
-    SlidingWindowExpression windowExpression = null;
-    if (context.joinWindow() != null && context.joinWindow().slidingWindowExpression() != null) {
-      windowExpression = (SlidingWindowExpression) visitSlidingWindowExpression(
-          context.joinWindow().slidingWindowExpression());
+    SpanExpression spanExpression = null;
+    if (context.joinWindow() != null && context.joinWindow().spanExpression() != null) {
+      spanExpression = (SpanExpression) visitSpanExpression(
+          context.joinWindow().spanExpression());
     }
     Relation left = (Relation) visit(context.left);
     Relation right = (Relation) visit(context.right);
     return new Join(getLocation(context), joinType, left, right, Optional.of(criteria),
-                    windowExpression);
+                    spanExpression);
   }
 
   @Override

@@ -283,7 +283,7 @@ public class Analyzer extends DefaultTraversalVisitor<Node, AnalysisContext> {
             rightKeyFieldName,
             leftAlias,
             rightAlias,
-            node.getSlidingWindowExpression().orElse(null),
+            node.getSpanExpression().orElse(null),
             leftDataSource.getDataSourceType(),
             rightDataSource.getDataSourceType()
         );
