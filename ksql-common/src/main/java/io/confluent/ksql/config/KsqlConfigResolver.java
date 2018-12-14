@@ -27,16 +27,21 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.ConfigKey;
 import org.apache.kafka.streams.StreamsConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Resolves Ksql and streams property name to a ConfigItem.
  */
 public class KsqlConfigResolver implements ConfigResolver {
 
+  private static final Logger LOG = LoggerFactory.getLogger(KsqlConfigResolver.class);
+
   private static final ConfigDef STEAMS_CONFIG_DEF = StreamsConfig.configDef();
   private static final ConfigDef CONSUMER_CONFIG_DEF = getConfigDef(ConsumerConfig.class);
   private static final ConfigDef PRODUCER_CONFIG_DEF = getConfigDef(ProducerConfig.class);
   private static final ConfigDef KSQL_CONFIG_DEF = KsqlConfig.CURRENT_DEF;
+
 
   private static final List<PrefixedConfig> STREAM_CONFIG_DEFS = ImmutableList.of(
       new PrefixedConfig(StreamsConfig.CONSUMER_PREFIX, CONSUMER_CONFIG_DEF),
@@ -53,7 +58,7 @@ public class KsqlConfigResolver implements ConfigResolver {
       return resolveKsqlConfig(propertyName);
     }
 
-    return resolveStreamsConfig(propertyName, strict);
+    return resolveStreamsConfig(propertyName, false);
   }
 
   private static Optional<ConfigItem> resolveStreamsConfig(
@@ -70,15 +75,20 @@ public class KsqlConfigResolver implements ConfigResolver {
         .findFirst();
 
     if (resolved.isPresent()) {
+      LOG.info("Resolved {} as a streams prefix", propertyName);
       return resolved;
     }
 
     if (key.startsWith(StreamsConfig.CONSUMER_PREFIX)
         || key.startsWith(StreamsConfig.PRODUCER_PREFIX)) {
+      LOG.info("Dropping config {} from KSQLConfig as it is an unrecognized client prefix.",
+               propertyName);
       return Optional.empty();  // Unknown producer / consumer config
     }
 
     if (propertyName.startsWith(KsqlConfig.KSQL_STREAMS_PREFIX)) {
+      LOG.info("Dropping config {} from KSQLConfig as it is an unrecognized STREAMS prefix.",
+               propertyName);
       return Optional.empty();  // Unknown streams config
     }
 
@@ -112,6 +122,7 @@ public class KsqlConfigResolver implements ConfigResolver {
     final String keyNoPrefix = stripPrefix(propertyName, prefix);
     final ConfigKey configKey = def.configKeys().get(keyNoPrefix);
     if (configKey == null) {
+      LOG.info("Dropping config {} from KSQLConfig as it is an unrecodnized prefix.", propertyName);
       return Optional.empty();
     }
 

@@ -317,6 +317,10 @@ public class IntegrationTestHarness {
     }
 
     public void configure(final Map<String, ?> map) {
+      for (Entry<String, ?> entry : map.entrySet()) {
+        LOG.info("{} -> {}", entry.getKey(), entry.getValue());
+      }
+
     }
   }
 
@@ -335,6 +339,9 @@ public class IntegrationTestHarness {
     }
 
     public void configure(final Map<String, ?> map) {
+      for (Entry<String, ?> entry : map.entrySet()) {
+        LOG.info("{} -> {}", entry.getKey(), entry.getValue());
+      }
     }
   }
 
@@ -351,6 +358,7 @@ public class IntegrationTestHarness {
     configMap.put(StreamsConfig.STATE_DIR_CONFIG, TestUtils.tempDirectory().getPath());
     configMap.put("producer.interceptor.classes", DummyProducerInterceptor.class.getName());
     configMap.put("consumer.interceptor.classes", DummyConsumerInterceptor.class.getName());
+    configMap.put("dummy.monitoring.interceptor.sasl.mechansim", "PLAIN");
     configMap.putAll(callerConfigMap);
 
     unifiedConfigs.putAll(configMap);
