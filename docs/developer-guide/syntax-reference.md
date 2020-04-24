@@ -457,7 +457,7 @@ following conditions are true:
 1.  For every record, the contents of the Kafka message key must be the
     same as the contents of the column set in `KEY` (which is derived
     from a field in the Kafka message value).
-2.  `KEY` must be set to a value column with the same SQL type as the key column.
+2.  The Kafka message key must have a [valid type](serialization.md).
 
 If these conditions aren't met, then the results of aggregations and
 joins may be incorrect. However, if your data doesn't meet these
